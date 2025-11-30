@@ -9,7 +9,7 @@ pipeline {
     environment {
         SONAR_URL = "http://20.63.88.111:9000"
         DOCKER_IMAGE = "sasirs/todo-container:${BUILD_NUMBER}"
-        GIT_REPO_NAME = "boot-java-prj"
+        GIT_REPO_NAME = "java-boot"
         GIT_USER_NAME = "sasirjsk"
     }
 
