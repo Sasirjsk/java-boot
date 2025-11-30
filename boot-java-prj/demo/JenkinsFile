@@ -32,7 +32,7 @@ pipeline {
 
         stage('Build and Test') {
             steps {
-                dir('boot-java-prj/demo') {
+                dir('java-boot') {
                     sh 'mvn clean package'
                 }
             }
@@ -40,7 +40,7 @@ pipeline {
 
         stage('Static Code Analysis') {
             steps {
-                dir('boot-java-prj/demo') {
+                dir('java-boot') {
                     withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                         sh "mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}"
                     }
@@ -50,7 +50,7 @@ pipeline {
 
         stage('Build and Push Docker Image') {
             steps {
-                dir('boot-java-prj/demo') {
+                dir('java-boot') {
                     script {
                         sh "docker build -t ${DOCKER_IMAGE} ."
                         def dockerImage = docker.image("${DOCKER_IMAGE}")
@@ -64,7 +64,7 @@ pipeline {
 
         stage('Update Deployment File') {
             steps {
-                dir('boot-java-prj') {
+                dir('java-boot') {
                     withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                         sh '''
                             git config user.email "sasirjsk27@gmail.com"
