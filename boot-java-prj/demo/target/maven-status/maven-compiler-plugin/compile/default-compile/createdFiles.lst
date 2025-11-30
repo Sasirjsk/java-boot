@@ -1,0 +1,5 @@
+com\example\demo\DemoApplication.class
+com\example\demo\controller\DemoController.class
+com\example\demo\service\DemoService.class
+com\example\demo\model\DemoItem.class
+com\example\demo\controller\WebController.class
