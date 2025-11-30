@@ -33,7 +33,7 @@ pipeline {
         stage('Build and Test') {
             steps {
                 sh 'ls -ltr'
-                sh 'cd boot-java-prj/demo && mvn clean package'
+                sh 'cd java-boot/boot-java-prj/demo && mvn clean package'
                 }
         }
 
