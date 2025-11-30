@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>To-Do List</title>
+    <style>
+        body { font-family: Arial; margin: 30px; }
+        .completed { text-decoration: line-through; color: gray; }
+        button { margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>To-Do List</h2>
+
+<form action="/add" method="post">
+    <input type="text" name="title" placeholder="Enter item" required>
+    <button type="submit">Add</button>
+</form>
+
+<hr>
+
+<ul>
+    <th:block th:each="item : ${items}">
+        <li>
+            <span th:text="${item.title}" th:classappend="${item.completed} ? 'completed'"></span>
+            <form th:action="@{/complete/{id}(id=${item.id})}" method="post" style="display:inline">
+                <button th:if="${!item.completed}" type="submit">Complete</button>
+            </form>
+        </li>
+    </th:block>
+</ul>
+
+</body>
+</html>
+
