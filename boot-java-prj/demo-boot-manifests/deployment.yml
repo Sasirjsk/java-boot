@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: spring-boot-app
-        image: sasirs/todo-container:replaceImageTag
+        image: sasirs/todo-container:22
         ports:
         - containerPort: 8080
