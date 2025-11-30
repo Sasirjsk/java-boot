@@ -22,9 +22,9 @@ pipeline {
 
         stage('2. Git Checkout') {
             steps {
-                dir('boot-java') {
+                dir('java-boot') {
                     git branch: 'main', 
-                        url: 'https://github.com/sasirjsk/boot-java.git',
+                        url: 'https://github.com/sasirjsk/java-boot.git',
                         credentialsId: 'github'
                 }
             }
