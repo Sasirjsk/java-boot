@@ -32,10 +32,8 @@ pipeline {
 
         stage('Build and Test') {
             steps {
-                dir('java-boot') {
                     sh 'mvn clean package'
                 }
-            }
         }
 
         stage('Static Code Analysis') {
