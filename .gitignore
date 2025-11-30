@@ -1,0 +1,10 @@
+# Ignore build output folders
+target/
+*.class
+
+# Ignore IDE files (optional, if you have IDE)
+.vscode/
+.idea/
+*.iml
+
+# Keep everything else (source, configs, manifests)
