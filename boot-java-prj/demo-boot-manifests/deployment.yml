@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: spring-boot-app
+  name: demo
   labels:
-    app: spring-boot-app
+    app: demo
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: spring-boot-app
+      app: demo
   template:
     metadata:
       labels:
-        app: spring-boot-app
+        app: demo
     spec:
       containers:
-      - name: spring-boot-app
+      - name: demo
         image: sasirs/todo-container:22
         ports:
         - containerPort: 8080
