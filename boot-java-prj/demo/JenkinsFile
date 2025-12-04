@@ -74,22 +74,30 @@ pipeline {
             }
         }
 
-        stage('Build and Push Docker Image in ACR') {
-            steps {
-                script {
-                    def imageTag = "${env.BUILD_NUMBER}"
-                    def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
-                    def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
+        stage('Push Docker Image to ACR') {
+    steps {
+        script {
+            def imageTag = "${env.BUILD_NUMBER}"
+            def localImage = "${DOCKER_IMAGE}" // the image built in previous stage
+            def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
+            def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
 
-                    sh """
-                        az acr login --name demoregistrybtcmp
-                        docker build -t ${versionedImage} -t ${latestImage} .
-                        docker push ${versionedImage}
-                        docker push ${latestImage}
-                    """
-                }
-            }
+            sh """
+                # Login to Azure Container Registry
+                az acr login --name demoregistrybtcmp
+                
+                # Tag the existing local image for ACR
+                docker tag ${localImage} ${versionedImage}
+                docker tag ${localImage} ${latestImage}
+                
+                # Push the images to ACR
+                docker push ${versionedImage}
+                docker push ${latestImage}
+            """
         }
+    }
+}
+
     
 
         stage('Update Deployment File') {
