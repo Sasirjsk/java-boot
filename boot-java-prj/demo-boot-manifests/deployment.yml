@@ -14,6 +14,8 @@ spec:
       labels:
         app: demo
     spec:
+      imagePullSecrets:
+        - name: acr-secret
       containers:
       - name: demo
         image: demoregistrybtcmp.azurecr.io/todo-container:9
