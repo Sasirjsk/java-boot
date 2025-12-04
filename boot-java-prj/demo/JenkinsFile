@@ -1,0 +1,119 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        maven 'maven3'
+    }
+
+    environment {
+        SONAR_URL = "http://4.172.240.39:9000"
+        DOCKER_IMAGE = "sasirs/todo-container:${BUILD_NUMBER}"
+        GIT_REPO_NAME = "java-boot"
+        GIT_USER_NAME = "sasirjsk"
+    }
+
+    stages {
+        stage("1. Cleanup") {
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage('2. Git Checkout') {
+            steps {
+                dir('java-boot') {
+                    git branch: 'main', 
+                        url: 'https://github.com/sasirjsk/java-boot.git',
+                        credentialsId: 'github'
+                }
+            }
+        }
+
+        stage('Build and Test') {
+            steps {
+                sh 'ls -ltr'
+                sh 'cd java-boot/boot-java-prj/demo && mvn clean package'
+                }
+        }
+
+        stage('Static Code Analysis') {
+            steps {
+                dir('java-boot/boot-java-prj/demo') {
+                    withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+                        sh "mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}"
+                    }
+                }
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            steps {
+                dir('java-boot/boot-java-prj/demo') {
+                    script {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                        def dockerImage = docker.image("${DOCKER_IMAGE}")
+                        docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+                            dockerImage.push()
+                        }
+                    }
+                }
+            }
+        }
+
+    stage('Login to Azure') {
+            steps {
+                withCredentials([
+                    usernamePassword(credentialsId: 'azure-sp', usernameVariable: 'AZURE_APP_ID', passwordVariable: 'AZURE_PASSWORD'),
+                    string(credentialsId: 'azure-tenant', variable: 'AZURE_TENANT')
+                ]) {
+                    sh '''
+                        az login --service-principal -u $AZURE_APP_ID -p $AZURE_PASSWORD --tenant $AZURE_TENANT
+                    '''
+                }
+            }
+        }
+
+        stage('Build and Push Docker Image in ACR') {
+            steps {
+                script {
+                    def imageTag = "${env.BUILD_NUMBER}"
+                    def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
+                    def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
+
+                    sh """
+                        az acr login --name demoregistrybtcmp
+                        docker build -t ${versionedImage} -t ${latestImage} .
+                        docker push ${versionedImage}
+                        docker push ${latestImage}
+                    """
+                }
+            }
+        }
+    
+
+        stage('Update Deployment File') {
+            steps {
+                dir('java-boot/boot-java-prj') {
+                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                        sh '''
+                            git config user.email "sasirjsk27@gmail.com"
+                            git config user.name "Sasi"
+                            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" demo-boot-manifests/deployment.yml
+                            git add demo-boot-manifests/deployment.yml
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
+                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning workspace after pipeline"
+            deleteDir()
+        }
+    }
+}
