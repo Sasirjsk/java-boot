@@ -118,27 +118,26 @@ pipeline {
 }
 
 
-        // New stage to run the container on host port 8081
         stage('Run Docker Container') {
-            steps {
-                script {
-                    def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
-                    def containerName = "todo-app"
+    steps {
+        script {
+            def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
+            def containerName = "todo-app"
 
-                    sh """
-                        # Stop old container if running
-                        if [ \$(sudo docker ps -q -f name=${containerName}) ]; then
-                            sudo docker stop ${containerName}
-                            sudo docker rm ${containerName}
-                        fi
+            sh """
+                # Stop old container if running
+                if [ \$(docker ps -q -f name=${containerName}) ]; then
+                    docker stop ${containerName}
+                    docker rm ${containerName}
+                fi
 
-                        # Run new container mapping host 8081 -> container 8080
-                        sudo docker run -d -p 8081:8080 --name ${containerName} ${acrImage}
-                    """
-                }
-            }
+                # Run new container mapping host 8081 -> container 8080
+                docker run -d -p 8081:8080 --name ${containerName} ${acrImage}
+            """
         }
     }
+}
+
 
     post {
         always {
