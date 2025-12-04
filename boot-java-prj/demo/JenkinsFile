@@ -34,7 +34,7 @@ pipeline {
             steps {
                 sh 'ls -ltr'
                 sh 'cd java-boot/boot-java-prj/demo && mvn clean package'
-                }
+            }
         }
 
         stage('Static Code Analysis') {
@@ -61,7 +61,7 @@ pipeline {
             }
         }
 
-    stage('Login to Azure') {
+        stage('Login to Azure') {
             steps {
                 withCredentials([
                     usernamePassword(credentialsId: 'azure-sp', usernameVariable: 'AZURE_APP_ID', passwordVariable: 'AZURE_PASSWORD'),
@@ -75,44 +75,66 @@ pipeline {
         }
 
         stage('Push Docker Image to ACR') {
-    steps {
-        script {
-            def imageTag = "${env.BUILD_NUMBER}"
-            def localImage = "${DOCKER_IMAGE}" // the image built in previous stage
-            def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
-            def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
+            steps {
+                script {
+                    def imageTag = "${env.BUILD_NUMBER}"
+                    def localImage = "${DOCKER_IMAGE}" // the image built in previous stage
+                    def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
+                    def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
 
-            sh """
-                # Login to Azure Container Registry
-                az acr login --name demoregistrybtcmp
-                
-                # Tag the existing local image for ACR
-                docker tag ${localImage} ${versionedImage}
-                docker tag ${localImage} ${latestImage}
-                
-                # Push the images to ACR
-                docker push ${versionedImage}
-                docker push ${latestImage}
-            """
+                    sh """
+                        az acr login --name demoregistrybtcmp
+                        docker tag ${localImage} ${versionedImage}
+                        docker tag ${localImage} ${latestImage}
+                        docker push ${versionedImage}
+                        docker push ${latestImage}
+                    """
+                }
+            }
+        }
+
+        stage('Update Deployment File') {
+    steps {
+        dir('java-boot/boot-java-prj') {
+            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                script {
+                    def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
+
+                    sh """
+                        git config user.email "sasirjsk27@gmail.com"
+                        git config user.name "Sasi"
+
+                        # Update container image
+                        sed -i "s|image:.*|image: ${acrImage}|g" demo-boot-manifests/deployment.yml
+
+                        git add demo-boot-manifests/deployment.yml demo-boot-manifests/service.yml
+                        git commit -m "Update deployment image to ${acrImage} and port mapping" || echo "No changes to commit"
+                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                    """
+                }
+            }
         }
     }
 }
 
-    
 
-        stage('Update Deployment File') {
+        // New stage to run the container on host port 8081
+        stage('Run Docker Container') {
             steps {
-                dir('java-boot/boot-java-prj') {
-                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                        sh '''
-                            git config user.email "sasirjsk27@gmail.com"
-                            git config user.name "Sasi"
-                            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" demo-boot-manifests/deployment.yml
-                            git add demo-boot-manifests/deployment.yml
-                            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
-                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                        '''
-                    }
+                script {
+                    def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
+                    def containerName = "todo-app"
+
+                    sh """
+                        # Stop old container if running
+                        if [ \$(sudo docker ps -q -f name=${containerName}) ]; then
+                            sudo docker stop ${containerName}
+                            sudo docker rm ${containerName}
+                        fi
+
+                        # Run new container mapping host 8081 -> container 8080
+                        sudo docker run -d -p 8081:8080 --name ${containerName} ${acrImage}
+                    """
                 }
             }
         }
