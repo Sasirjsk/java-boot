@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: demo
-        image: sasirs/todo-container:22
+        image: demoregistrybtcmp.azurecr.io/todo-container:7
         ports:
         - containerPort: 8080
