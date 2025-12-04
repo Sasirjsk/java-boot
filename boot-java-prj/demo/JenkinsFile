@@ -15,9 +15,7 @@ pipeline {
 
     stages {
         stage("1. Cleanup") {
-            steps {
-                deleteDir()
-            }
+            steps { deleteDir() }
         }
 
         stage('2. Git Checkout') {
@@ -78,7 +76,7 @@ pipeline {
             steps {
                 script {
                     def imageTag = "${env.BUILD_NUMBER}"
-                    def localImage = "${DOCKER_IMAGE}" // the image built in previous stage
+                    def localImage = "${DOCKER_IMAGE}"
                     def versionedImage = "demoregistrybtcmp.azurecr.io/todo-container:${imageTag}"
                     def latestImage = "demoregistrybtcmp.azurecr.io/todo-container:latest"
 
@@ -94,50 +92,49 @@ pipeline {
         }
 
         stage('Update Deployment File') {
-    steps {
-        dir('java-boot/boot-java-prj') {
-            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+            steps {
+                dir('java-boot/boot-java-prj') {
+                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                        script {
+                            def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
+                            sh """
+                                git config user.email "sasirjsk27@gmail.com"
+                                git config user.name "Sasi"
+
+                                # Update container image
+                                sed -i "s|image:.*|image: ${acrImage}|g" demo-boot-manifests/deployment.yml
+
+                                git add demo-boot-manifests/deployment.yml demo-boot-manifests/service.yml
+                                git commit -m "Update deployment image to ${acrImage} and port mapping" || echo "No changes to commit"
+                                git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
                 script {
                     def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
+                    def containerName = "todo-app"
 
                     sh """
-                        git config user.email "sasirjsk27@gmail.com"
-                        git config user.name "Sasi"
+                        # Stop old container if running
+                        if [ \$(docker ps -q -f name=${containerName}) ]; then
+                            docker stop ${containerName}
+                            docker rm ${containerName}
+                        fi
 
-                        # Update container image
-                        sed -i "s|image:.*|image: ${acrImage}|g" demo-boot-manifests/deployment.yml
-
-                        git add demo-boot-manifests/deployment.yml demo-boot-manifests/service.yml
-                        git commit -m "Update deployment image to ${acrImage} and port mapping" || echo "No changes to commit"
-                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                        # Run new container mapping host 8081 -> container 8080
+                        docker run -d -p 8081:8080 --name ${containerName} ${acrImage}
                     """
                 }
             }
         }
-    }
-}
 
-
-        stage('Run Docker Container') {
-    steps {
-        script {
-            def acrImage = "demoregistrybtcmp.azurecr.io/todo-container:${BUILD_NUMBER}"
-            def containerName = "todo-app"
-
-            sh """
-                # Stop old container if running
-                if [ \$(docker ps -q -f name=${containerName}) ]; then
-                    docker stop ${containerName}
-                    docker rm ${containerName}
-                fi
-
-                # Run new container mapping host 8081 -> container 8080
-                docker run -d -p 8081:8080 --name ${containerName} ${acrImage}
-            """
-        }
-    }
-}
-
+    } // closes stages
 
     post {
         always {
@@ -145,4 +142,4 @@ pipeline {
             deleteDir()
         }
     }
-}
+} // closes pipeline
